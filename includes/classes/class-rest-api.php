@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // extends the default EDD REST API to provide an endpoint for commissions
 class EDD_Purchased_Files_Rest_API {
 
+	private $found_files = array();
 
 	/**
 	 * Get things started
@@ -69,8 +70,6 @@ class EDD_Purchased_Files_Rest_API {
 
 		if ( $purchases ) {
 
-			$found_files = array();
-
 			foreach ( $purchases as $payment ) {
 
 				$payment   = edd_get_payment( $payment->ID );
@@ -79,35 +78,11 @@ class EDD_Purchased_Files_Rest_API {
 
 					foreach ( $payment->cart_details as $key => $item ) {
 
-						if ( edd_is_bundled_product( $item['id'] ) ) {
-							continue;
-						}
-
-						$options        = isset( $item['item_number']['options'] ) ? $item['item_number']['options'] : array();
-						$price_id       = isset( $options['price_id'] ) ? $options['price_id'] : 0;
-
-						$download       = new EDD_Download( $item['id'] );
-						$download_files = $download->get_files( $price_id );
-
-						if ( ! isset( $found_files[ $item['id'] ] ) ) {
-							$found_files[ $item['id'] ] = array( 'name' => $download->get_name() );
-						}
-
-						if ( ! empty( $download_files ) ) {
-
-							foreach ( $download_files as $filekey => $file ) {
-								if ( isset( $found_files[ $item['id'] ][ $filekey ] ) ) {
-									continue; // We've already found this file key
-								}
-
-								$download_url = edd_get_download_file_url( $payment->key, $payment->email, $filekey, $item['id'], $price_id );
-								$found_files[ $item['id'] ]['files'][ $filekey ] = array(
-									'file_name'    => edd_get_file_name( $file ),
-									'download_url' => $download_url,
-								);
-
-							}
-
+						$options  = isset( $item['item_number']['options'] ) ? $item['item_number']['options'] : array();
+						$price_id = isset( $options['price_id'] ) ? $options['price_id'] : 0;
+						$download = new EDD_Download( $item['id'] );
+						if ( $download->ID > 0 ) {
+							$this->get_download_files( $payment, $download, $price_id );
 						}
 
 					}
@@ -116,7 +91,7 @@ class EDD_Purchased_Files_Rest_API {
 
 			}
 
-			$data['files'] = $found_files;
+			$data['files'] = $this->found_files;
 
 			$hours = absint( edd_get_option( 'download_link_expiration', 24 ) );
 			$data['link_expiration'] = strtotime( '+' . $hours . 'hours', current_time( 'timestamp') );
@@ -127,5 +102,41 @@ class EDD_Purchased_Files_Rest_API {
 
 		return $data;
 	}
+
+	private function get_download_files( $payment, $download, $price_id ) {
+
+		if ( $download->is_bundled_download() ) {
+			foreach ( $download->bundled_downloads as $bundled_download ) {
+				$bundled_download = new EDD_Download( $bundled_download );
+				$this->get_download_files( $payment, $bundled_download, $price_id );
+			}
+			return;
+		}
+
+		$download_files = $download->get_files( $price_id );
+
+		if ( ! isset( $this->found_files[ $download->ID ] ) ) {
+			$this->found_files[ $download->ID ] = array( 'name' => $download->get_name() );
+		}
+
+		if ( ! empty( $download_files ) ) {
+
+			foreach ( $download_files as $filekey => $file ) {
+				if ( isset( $this->found_files[ $download->ID ][ $filekey ] ) ) {
+					continue; // We've already found this file key
+				}
+
+				$download_url = edd_get_download_file_url( $payment->key, $payment->email, $filekey, $download->ID, $price_id );
+				$this->found_files[ $download->ID ]['files'][ $filekey ] = array(
+					'file_name'    => edd_get_file_name( $file ),
+					'download_url' => $download_url,
+				);
+
+			}
+
+		}
+
+	}
+
 }
 new EDD_Purchased_Files_Rest_API;
