@@ -146,6 +146,9 @@ class EDD_Purchased_Files_Rest_API {
 		$payment_key = get_user_meta( $user_id, 'has_membership_api_payment', true );
 
 		if ( empty( $payment_key ) ) {
+
+			remove_action( 'edd_complete_purchase', 'edd_trigger_purchase_receipt', 999, 3 );
+
 			$download = get_page_by_title( 'RCP/EDD Member Download - API', OBJECT, 'download' );
 
 			if ( empty( $download ) ) {
