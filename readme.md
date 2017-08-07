@@ -2,7 +2,13 @@
 Allows calling the EDD JSON API with a API Key and Token to get a list of files the user associated with the credentials has access to
 
 ## Usage
+For EDD Puchases
+
 `http://edd.dev/edd-api/my-files?key=<api key>&token=<api token>`
+
+For use with Restrict Content Pro - EDD Member Downloads
+
+`http://edd.dev/edd-api/member-downloads?key=<api key>&token=<api token>`
 
 ## Return
 ```
